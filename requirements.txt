@@ -9,3 +9,4 @@ readability-lxml==0.8.1
 requests==2.32.3
 upstash-redis==1.7.0
 vercel==0.5.9
+gunicorn==23.0.0

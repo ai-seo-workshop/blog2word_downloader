@@ -60,6 +60,71 @@ Redis 任务状态保留 7 天。Vercel Cron 每天 UTC 03:00 调用清理接口
 当前项目按无登录内部工具部署，不要启用 Vercel Deployment Protection，否则 QStash
 无法调用后台 worker。
 
+## 部署到自有服务器（IP:Port 访问）
+
+如果希望把服务从 Vercel 迁移到任意 Linux 服务器 B，并通过 `http://<IP>:<端口>`
+访问，可按以下步骤操作。
+
+### 1. 环境准备
+
+需要 Python 3.10+。建议创建虚拟环境：
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+`requirements.txt` 已包含 `gunicorn`，用于生产环境运行。
+
+### 2. 配置环境变量
+
+复制 `.env.example` 为 `.env` 并填入真实值：
+
+- `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN`
+- `QSTASH_URL`、`QSTASH_TOKEN`、`QSTASH_CURRENT_SIGNING_KEY`、`QSTASH_NEXT_SIGNING_KEY`
+- `BLOB_READ_WRITE_TOKEN`
+- `APP_BASE_URL`：**必须改为服务器 B 的公网可访问地址**，例如 `http://192.0.2.10:5000`。
+  不要使用末尾斜杠。QStash 需要能公网访问该地址以回调 `/internal/process`。
+- `BATCH_SIZE=5`、`WORKER_PARALLELISM=3`
+- `CRON_SECRET`：设置随机长字符串，用于清理接口鉴权
+
+### 3. 启动服务
+
+临时启动（用于验证）：
+
+```bash
+gunicorn -w 2 -b 0.0.0.0:5000 app:app
+```
+
+生产环境建议使用 systemd，参考 `blog2word.service.example` 修改路径和用户后：
+
+```bash
+sudo cp blog2word.service.example /etc/systemd/system/blog2word.service
+sudo systemctl daemon-reload
+sudo systemctl enable blog2word
+sudo systemctl start blog2word
+```
+
+### 4. 防火墙/安全组
+
+放行服务器 B 上 gunicorn 监听的端口（例如 5000）。
+
+### 5. 替代 Vercel Cron 的定时清理
+
+`vercel.json` 中的 Cron 在自有服务器上不会自动执行。使用 Linux crontab：
+
+1. 编辑 `cron_cleanup.sh`，确保 `CRON_SECRET` 与 `APP_BASE_URL` 环境变量已设置。
+2. 添加定时任务：
+
+```cron
+0 3 * * * /path/to/blog2word_downloader/cron_cleanup.sh
+```
+
+### 6. 验证
+
+打开 `http://<服务器B IP>:5000/`，提交测试 URL，确认任务能正常完成并下载 ZIP。
+
 ## 本地网页
 
 安装依赖并将 `.env.example` 复制为 `.env`，填入真实外部服务配置：

@@ -1,0 +1,15 @@
+[Unit]
+Description=blog2word downloader
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/blog2word_downloader
+EnvironmentFile=/path/to/blog2word_downloader/.env
+ExecStart=/path/to/blog2word_downloader/venv/bin/gunicorn -w 2 -b 127.0.0.1:5000 app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
